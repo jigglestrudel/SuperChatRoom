@@ -111,7 +111,7 @@ void* connection_handler(void *conn_info)
 	printf("Nastąpiło połączenie klienta numer %i", client_number);
 	//send connection info to users
 	sem_wait(queue_semaphore);
-	add_new_message(message_queue, "Użytkownik połączył się", client_number, strlen(client_message));
+	add_new_message(message_queue, "Użytkownik połączył się", client_number, strlen("Użytkownik połączył się"));
 	sem_post(queue_semaphore);
 	 
 	//waiting for messages from user and saving to queue
@@ -149,7 +149,7 @@ void* connection_handler(void *conn_info)
 	printf("Klient numer %i rozłącza się", client_number);
 	//send disconnection info to users
 	sem_wait(queue_semaphore);
-	add_new_message(message_queue, "Użytkownik rozłączył się", client_number, strlen(client_message));
+	add_new_message(message_queue, "Użytkownik rozłączył się", client_number, strlen("Użytkownik rozłączył się"));
 	sem_post(queue_semaphore);
 
 	close(sock);

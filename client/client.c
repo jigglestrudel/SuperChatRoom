@@ -19,7 +19,7 @@ void move_cursor (int y, int x) {
     printf("\x1B[%d;%dH", y, x);
 }
 
-
+int fake_semaphore = 0;
 
 
 sem_t terminal_writing;
@@ -36,7 +36,7 @@ void* incoming_message_handling(void* connection_info) {
         recvBuff[n] = 0;
 
         if (strcmp(recvBuff, "READY") == 0) {
-            sem_post(&awaiting_server_ready);
+            fake_semaphore = 1;
             continue;
         }
 
@@ -53,7 +53,7 @@ void* incoming_message_handling(void* connection_info) {
         }*/
 
         // move cursor to the desired row
-        //move_cursor(line_count, 0);
+        move_cursor(line_count, 0);
 
         // write out the message
         puts(recvBuff);
@@ -61,6 +61,7 @@ void* incoming_message_handling(void* connection_info) {
         // count another line
         line_count++;
 
+        move_cursor(MESSAGE_INPUT_ROW, 0);
         //sem_post(&terminal_writing);
     } 
 
@@ -72,19 +73,35 @@ void* outcoming_message_handling(void* connection_info) {
     int length = 0;
     int c, x, y;
 
-    while (scanf("%[^\n]%*c", message)) 
+    while (1)
     {
-        message[length] = '\0';
+        length = 0;
+        while ((c = getchar()) != '\n')
+        {
+            message[length] = c;
+            length++;
+        }
 
-        write(sockfd, "MSG", strlen("MSG"));
+        //message[length] = '\0';
 
-        sem_wait(&awaiting_server_ready);
+        if (length == 0) continue;
+
+        write(sockfd, "MSG", strlen("MSG")*sizeof(char));
+
+        while(fake_semaphore == 0);
                     
         write(sockfd, message, length);
-        
-        sem_wait(&awaiting_server_ready);
+
+        fake_semaphore = 0;
+
+        move_cursor(MESSAGE_INPUT_ROW-1, 0);
+        printf("                                                         ");                                                                                              
+        move_cursor(MESSAGE_INPUT_ROW, 0);
+        printf("                                                         "); 
+        move_cursor(MESSAGE_INPUT_ROW, 0);
     }
         
+    printf("CHUJ CI W DUPE");
 }
 
 
@@ -129,6 +146,7 @@ int main(int argc, char *argv[]) {
         else if (strcmp(recvBuff, "NAME_GOOD") == 0){
             // name accepted
             printf("Name accepted!\n");
+            system("clear");
             break;
         }
     }
