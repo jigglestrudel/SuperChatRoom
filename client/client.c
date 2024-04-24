@@ -135,7 +135,6 @@ int main(int argc, char *argv[]) {
 
     if (n <= 0) { return 1;}
     // create threads responsible for writing and reading from the server
-    setvbuf(stdout, NULL, _IONBF, 0);
    
     sem_init(&terminal_writing, 0, 1);
     sem_init(&awaiting_server_ready, 0, 0);
