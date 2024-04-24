@@ -50,6 +50,7 @@ void* send_messages(void* clients) {
 					write(client_sockets[i] , message_to_send->message , message_to_send->message_length);
 				}
 			}
+			delete_message(message_to_send);
 		}
 	}
 }
