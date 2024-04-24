@@ -1,14 +1,13 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-//KOLEJKA POWINNA DZIAŁAĆ :))
-
 typedef struct node {
     struct node* next;  //closer to end
     struct node* previous; //closer to start
     int user_number;
     char* message;
     int message_length;
+    int message_type;
 } node;
 
 typedef struct queue {

@@ -97,6 +97,7 @@ void* connection_handler(void *conn_info)
 	/* Send some messages to the client */
 	while(1) {
 		// ask client for the name
+		printf("Pytam o nazwę użytkownika klienta numer %i", client_number);
 		message = "ASK_NAME";
 		write(sock , message , strlen(message));
 
@@ -111,9 +112,17 @@ void* connection_handler(void *conn_info)
 			name_table[client_number] = new_name;
 			message = "NAME_GOOD";
 			write(sock, message, strlen(message));  //send feedback on username
+			printf("Nazwa uzytkownika klienta nr %i jest prawidłowa", client_number);
 			break;
 		}
+		printf("Nazwa użytkownika nie jest prawidłowa");
 	}
+
+	printf("Nastąpiło połączenie klienta numer %i", client_number);
+	//send connection info to users
+	sem_wait(queue_semaphore);
+	add_new_message(message_queue, "Użytkownik połączył się", client_number, strlen(client_message));
+	sem_post(queue_semaphore);
 	 
 	//waiting for messages from user and saving to queue
 	do {
@@ -121,18 +130,21 @@ void* connection_handler(void *conn_info)
 		client_message[read_size] = '\0';
 
 		if (strcmp(client_message, "MSG") != 0) {
-			printf("Otrzymano nieprawidłową wiadomośc");
+			printf("Otrzymano nieprawidłową wiadomość");
 			return 1;
 		}
 
 		message = "READY";
 		write(sock, message, strlen(message));
+		printf("Wysłano READY do użytkownika numer %i", client_number);
 
 		read_size = recv(sock , client_message , 2000 , 0);
 		client_message[read_size] = '\0';
 
 		char* new_message = (char*)malloc(sizeof(char)*strlen(client_message));
 		strcpy(new_message, client_message);
+
+		printf("Otrzymano wiadomość %s od użytkownika %s", new_message, name_table[client_number]);
 
 		sem_wait(queue_semaphore);
 		add_new_message(message_queue, new_message, client_number, strlen(client_message));
@@ -144,6 +156,12 @@ void* connection_handler(void *conn_info)
 	
 	fprintf(stderr, "Client disconnected\n"); 
 	
+	printf("Klient numer %i rozłącza się", client_number);
+	//send disconnection info to users
+	sem_wait(queue_semaphore);
+	add_new_message(message_queue, "Użytkownik rozłączył się", client_number, strlen(client_message));
+	sem_post(queue_semaphore);
+
 	close(sock);
 	pthread_exit(NULL);
 }
@@ -154,6 +172,8 @@ int main(int argc, char *argv[]) {
 	struct sockaddr_in serv_addr; 
 	pthread_t thread_id;
 	queue* messages_queue = create_queue();
+	sem_t queue_semaphore;
+	int return_value = sem_init(&queue_semaphore, 0, 1);
 
 	char* name_table[CLIENT_LIMIT];
 	for (int i = 0; i < CLIENT_LIMIT; i++) {
@@ -215,6 +235,7 @@ int main(int argc, char *argv[]) {
 			conn_info->is_client_connected = is_client_connected;
 			conn_info->name_table = name_table;
 			conn_info->messages_queue = messages_queue;
+			conn_info->queue_semaphore = &queue_semaphore;
 			pthread_create(&thread_id, NULL, connection_handler, (void *) conn_info);
 		}
 	}
