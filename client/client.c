@@ -42,6 +42,7 @@ void* incoming_message_handling(void* connection_info) {
 
         //sem_wait(&terminal_writing);
 
+/*
         if (line_count == 0)
         {
             move_cursor(line_count, 0);
@@ -49,10 +50,10 @@ void* incoming_message_handling(void* connection_info) {
             for (int i = 0; i < MESSAGE_INPUT_ROW; i++) {
                 printf("                                                                                             \n");
             }
-        }
+        }*/
 
         // move cursor to the desired row
-        move_cursor(line_count, 0);
+        //move_cursor(line_count, 0);
 
         // write out the message
         puts(recvBuff);
@@ -71,51 +72,19 @@ void* outcoming_message_handling(void* connection_info) {
     int length = 0;
     int c, x, y;
 
-    while ((c = getchar())) {
-        if (c == '\n' && length > 0) {
-            // message was entered
-            // TODO send it
+    while (scanf("%[^\n]%*c", message)) 
+    {
+        message[length] = '\0';
 
-            message[length] = '\0';
+        write(sockfd, "MSG", strlen("MSG"));
 
-            write(sockfd, "MSG", strlen("MSG"));
-
-            sem_wait(&awaiting_server_ready);
-                        
-            write(sockfd, message, length);
-            
-            sem_wait(&awaiting_server_ready);
-        }
-
-        // drawing onto the terminal!!!
-        //sem_wait(&terminal_writing);
-
-        move_cursor(MESSAGE_INPUT_ROW, length);
-
-        if (c == '\x08') {
-            // backspace was entered
-            // TODO delete last character
-            message[length] = '\0';
-            length--;
-
-            // graphically removing the last character
-            move_cursor(MESSAGE_INPUT_ROW, length);
-            putchar(' ');
-        }
-        else {
-            // add character to the message buffer
-            if (length < MAX_MESSAGE_LENGTH)
-            {
-                message[length] = c;
-                length++;
-                move_cursor(MESSAGE_INPUT_ROW, length);
-                //putchar(c);
-
-            }
-        }
-
-        //sem_post(&terminal_writing);
+        sem_wait(&awaiting_server_ready);
+                    
+        write(sockfd, message, length);
+        
+        sem_wait(&awaiting_server_ready);
     }
+        
 }
 
 

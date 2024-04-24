@@ -67,7 +67,7 @@ void delete_message(queue* queue) {
             queue->start = NULL;
             queue->end = NULL;
         }
-        free(to_delete->message);
+//        free(to_delete->message);
         free(to_delete);
     }
 }
