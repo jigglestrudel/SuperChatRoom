@@ -20,6 +20,8 @@ void move_cursor (int y, int x) {
 }
 
 
+
+
 sem_t terminal_writing;
 sem_t awaiting_server_ready;
 
@@ -29,12 +31,11 @@ void* incoming_message_handling(void* connection_info) {
     int n;
     int line_count = 0;
 
-    // set cursor to home position
     
     while ((n = read(sockfd, recvBuff, sizeof(recvBuff)-1)) > 0) {
         recvBuff[n] = 0;
 
-        if (strcmp(recvBuff, "READY")) {
+        if (strcmp(recvBuff, "READY") == 0) {
             sem_post(&awaiting_server_ready);
             continue;
         }
@@ -70,7 +71,7 @@ void* outcoming_message_handling(void* connection_info) {
     int length = 0;
     int c, x, y;
 
-    while (c = getchar()) {
+    while ((c = getchar())) {
         if (c == '\n' && length > 0) {
             // message was entered
             // TODO send it
@@ -124,11 +125,6 @@ int main(int argc, char *argv[]) {
     char recvBuff[2000];
     struct sockaddr_in serv_addr; 
 
-    if(argc != 2) {
-        printf("\n Usage: %s <ip of server> \n",argv[0]);
-        return 1;
-    } 
-
     memset(recvBuff, '0',sizeof(recvBuff));
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("\n Error : Could not create socket \n");
@@ -140,7 +136,7 @@ int main(int argc, char *argv[]) {
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(5000); 
 
-    if(inet_pton(AF_INET, argv[1], &serv_addr.sin_addr)<=0) {
+    if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0) {
         printf("\n inet_pton error occured\n");
         return 1;
     } 
@@ -170,7 +166,7 @@ int main(int argc, char *argv[]) {
 
     if (n <= 0) { return 1;}
     // create threads responsible for writing and reading from the server
-
+    setvbuf(stdout, NULL, _IONBF, 0);
    
     sem_init(&terminal_writing, 0, 1);
     sem_init(&awaiting_server_ready, 0, 0);
