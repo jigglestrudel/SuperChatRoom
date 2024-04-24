@@ -108,6 +108,7 @@ void* connection_handler(void *conn_info)
 		if (check_name_availibility(client_number, client_message, name_table, is_client_connected)){
 			char* new_name = (char*)malloc(sizeof(char)*strlen(client_message));
 			strcpy(new_name, client_message);
+			name_table[client_number] = new_name;
 			message = "NAME_GOOD";
 			write(sock, message, strlen(message));  //send feedback on username
 			break;
@@ -120,7 +121,7 @@ void* connection_handler(void *conn_info)
 		client_message[read_size] = '\0';
 
 		if (strcmp(client_message, "MSG") != 0) {
-			print("Otrzymano nieprawidłową wiadomośc");
+			printf("Otrzymano nieprawidłową wiadomośc");
 			return 1;
 		}
 
@@ -155,6 +156,9 @@ int main(int argc, char *argv[]) {
 	queue* messages_queue = create_queue();
 
 	char* name_table[CLIENT_LIMIT];
+	for (int i = 0; i < CLIENT_LIMIT; i++) {
+		name_table[i] = NULL;
+	}
 	int is_client_connected[CLIENT_LIMIT];
 	int client_sockets[CLIENT_LIMIT];
 	messages_info* connected_messages_info = (messages_info*)malloc(sizeof(messages_info));  //PAMIĘTAJ O FREE
@@ -162,8 +166,8 @@ int main(int argc, char *argv[]) {
 		printf("Nie udało się zaalokować pamięci do przechowywania informacji o przyłączonych użytkownikach");
 		return 1;
 	}
-	memset(is_client_connected, 0, CLIENT_LIMIT);
-	memset(client_sockets, 0, CLIENT_LIMIT);
+	memset(is_client_connected, 0, CLIENT_LIMIT * sizeof(int));
+	memset(client_sockets, 0, CLIENT_LIMIT * sizeof(int));
 	connected_messages_info->clients_sockets = &client_sockets;
 	connected_messages_info->is_client_connected = &is_client_connected; 
 	connected_messages_info->messages_queue = messages_queue;
