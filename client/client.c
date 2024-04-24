@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <semaphore.h>
-#include <ncurses.h>
+//#include <ncurses.h>
 #include <pthread.h>
 
 
@@ -14,6 +14,10 @@
 typedef struct {
     int sockfd;
 } conn_info;
+
+void move_cursor (int y, int x) {
+    printf("\x1B[%d;%dH", y, x);
+}
 
 
 sem_t terminal_writing;
@@ -39,18 +43,18 @@ void* incoming_message_handling(void* connection_info) {
 
         if (line_count == 0)
         {
-            move(line_count, 0);
+            move_cursor(line_count, 0);
             // clear the screen 
             for (int i = 0; i < MESSAGE_INPUT_ROW; i++) {
-                addstr("                                                                                             \n");
+                printf("                                                                                             \n");
             }
         }
 
         // move cursor to the desired row
-        move(line_count, 0);
+        move_cursor(line_count, 0);
 
         // write out the message
-        printw(recvBuff);
+        puts(recvBuff);
 
         // count another line
         line_count++;
@@ -66,7 +70,7 @@ void* outcoming_message_handling(void* connection_info) {
     int length = 0;
     int c, x, y;
 
-    while (c = getch()) {
+    while (c = getchar()) {
         if (c == '\n' && length > 0) {
             // message was entered
             // TODO send it
@@ -85,7 +89,7 @@ void* outcoming_message_handling(void* connection_info) {
         // drawing onto the terminal!!!
         sem_wait(&terminal_writing);
 
-        move(MESSAGE_INPUT_ROW, length);
+        move_cursor(MESSAGE_INPUT_ROW, length);
 
         if (c == '\x08') {
             // backspace was entered
@@ -94,8 +98,8 @@ void* outcoming_message_handling(void* connection_info) {
             length--;
 
             // graphically removing the last character
-            move(MESSAGE_INPUT_ROW, length);
-            addch(' ');
+            move_cursor(MESSAGE_INPUT_ROW, length);
+            putchar(' ');
         }
         else {
             // add character to the message buffer
@@ -103,8 +107,8 @@ void* outcoming_message_handling(void* connection_info) {
             {
                 message[length] = c;
                 length++;
-                move(MESSAGE_INPUT_ROW, length);
-                addch(c);
+                move_cursor(MESSAGE_INPUT_ROW, length);
+                putchar(c);
 
             }
         }
@@ -167,9 +171,7 @@ int main(int argc, char *argv[]) {
     if (n <= 0) { return 1;}
     // create threads responsible for writing and reading from the server
 
-    initscr();
-    raw();
-    noecho();
+   
     sem_init(&terminal_writing, 0, 1);
     sem_init(&awaiting_server_ready, 0, 0);
     conn_info* connection_info = (conn_info*)malloc(sizeof(conn_info));
@@ -179,7 +181,7 @@ int main(int argc, char *argv[]) {
     pthread_create(&output_thread, NULL, outcoming_message_handling, (void*)connection_info);
     
 
-    while (true);
+    while (1);
     
 
     return 0;
