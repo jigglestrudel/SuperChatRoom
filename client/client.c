@@ -40,7 +40,7 @@ void* incoming_message_handling(void* connection_info) {
             continue;
         }
 
-        sem_wait(&terminal_writing);
+        //sem_wait(&terminal_writing);
 
         if (line_count == 0)
         {
@@ -60,7 +60,7 @@ void* incoming_message_handling(void* connection_info) {
         // count another line
         line_count++;
 
-        sem_post(&terminal_writing);
+        //sem_post(&terminal_writing);
     } 
 
 }
@@ -88,7 +88,7 @@ void* outcoming_message_handling(void* connection_info) {
         }
 
         // drawing onto the terminal!!!
-        sem_wait(&terminal_writing);
+        //sem_wait(&terminal_writing);
 
         move_cursor(MESSAGE_INPUT_ROW, length);
 
@@ -109,12 +109,12 @@ void* outcoming_message_handling(void* connection_info) {
                 message[length] = c;
                 length++;
                 move_cursor(MESSAGE_INPUT_ROW, length);
-                putchar(c);
+                //putchar(c);
 
             }
         }
 
-        sem_post(&terminal_writing);
+        //sem_post(&terminal_writing);
     }
 }
 
