@@ -24,6 +24,7 @@ typedef struct messages_info {
 	int socket;
 	int* clients_sockets;
 	int* is_client_connected;
+	char** name_table;
 	queue* messages_queue;
 } messages_info;
 
@@ -31,6 +32,7 @@ void* send_messages(void* clients) {
 	int socket = ((messages_info*)clients)->socket;
 	int* client_sockets = ((messages_info*)clients)->clients_sockets;
 	int* is_client_connected = ((messages_info*)clients)->is_client_connected;
+	char** name_table = ((messages_info*)clients)->name_table;
 	queue* messages_to_send = ((messages_info*)clients)->messages_queue;
 	char client_message[2000];
 	for (;;) {
@@ -38,27 +40,14 @@ void* send_messages(void* clients) {
 			node* message_to_send = messages_to_send->start;
 			for (int i = 0; i < CLIENT_LIMIT; i++) {
 				//message isn't send if current user is author of message or isn't connected
-				if (i != message_to_send->user_number && is_client_connected[i]) {
+				if (is_client_connected[i]) {
 
-					//sending message to client
-					char* message = "INCOMING_MSG";
+					//sending username sender to user
+					char* message = name_table[message_to_send->user_number];
 					write(client_sockets[i], message, strlen(message));
 
-					int read_size = recv(socket , client_message , 2000 , 0);
-					client_message[read_size] = '\0';
-					if (strcmp(client_message, "READY") != 0) {
-						printf("Brak odpowiedzi");
-						break;
-					} 
-
-					message = "USERNAME";
-					write(client_sockets[i], message, strlen(message));
-
-					message = "TEXT";
+					//sending message to user
 					write(client_sockets[i] , message_to_send->message , message_to_send->message_length);
-
-					message = "DONE";
-					write(client_sockets[i], message, strlen(message));
 				}
 			}
 		}
@@ -191,6 +180,7 @@ int main(int argc, char *argv[]) {
 	connected_messages_info->clients_sockets = &client_sockets;
 	connected_messages_info->is_client_connected = &is_client_connected; 
 	connected_messages_info->messages_queue = messages_queue;
+	connected_messages_info->name_table = name_table;
 
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
 	memset(&serv_addr, '0', sizeof(serv_addr));
