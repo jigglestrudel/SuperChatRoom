@@ -29,44 +29,39 @@ void* incoming_message_handling(void* connection_info) {
     char recvBuff[2000];
     int n;
     int line_count = 1;
-
     
     while (*running == 1 && (n = read(sockfd, recvBuff, sizeof(recvBuff)-1)) > 0) {
         recvBuff[n] = 0;
 
         if (strcmp(recvBuff, "READY") == 0) {
+            // server is ready for our message
             *fake_semaphore = 1;
             continue;
         }
 
-        //sem_wait(&terminal_writing);
-
-/*
-        if (line_count == 0)
-        {
+        if (recvBuff[0] == 'M' && recvBuff[1] == 'S' && recvBuff[2] == 'G') {
+            puts("\033[s");
+            // move cursor to the desired row
             move_cursor(line_count, 0);
-            // clear the screen 
-            for (int i = 0; i < MESSAGE_INPUT_ROW; i++) {
-                printf("                                                                                             \n");
-            }
-        }*/
-        //saving the current position
-        puts("\033[s");
 
+            puts(recvBuff+3);
+            line_count++;
+
+            // restoting the last position
+            puts("\033[u");
+            continue;
+        }
+
+        puts("\033[s");
         // move cursor to the desired row
         move_cursor(line_count, 0);
-        //puts("\033[30A");
 
-        // write out the message
         puts(recvBuff);
-
-        // count another line
         line_count++;
 
         // restoting the last position
         puts("\033[u");
-
-        //sem_post(&terminal_writing);
+        
     } 
     pthread_exit(NULL);
 

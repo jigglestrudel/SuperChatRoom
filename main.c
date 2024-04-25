@@ -45,19 +45,19 @@ void* send_messages(void* clients) {
 			for (int i = 0; i < CLIENT_LIMIT; i++) {
 				//message isn't send if current user is author of message or isn't connected
 				if (is_client_connected[i] && name_table[message_to_send->user_number] != NULL) {
-					char* message = "MSG";
+					char message[2000];
+					snprintf(message, 2000, "MSG[%s]:%s", name_table[message_to_send->user_number], message_to_send->message);
 					write(client_sockets[i], message, strlen(message));
 
+					/*
 					//sending username sender to user
 					message = name_table[message_to_send->user_number];
 					write(client_sockets[i], message, strlen(message));
 
 					//sending message to user
 					write(client_sockets[i] , message_to_send->message , message_to_send->message_length);
-				}
-				if(*server_running == 0) {
-					pthread_exit(NULL);
-				}
+				*/
+			}
 			}
 			delete_message(messages_to_send);
 		}
