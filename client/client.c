@@ -12,6 +12,7 @@
 
 typedef struct {
     int sockfd;
+    int* running;
 } conn_info;
 
 void move_cursor (int y, int x) {
@@ -26,12 +27,13 @@ sem_t awaiting_server_ready;
 
 void* incoming_message_handling(void* connection_info) {
     int sockfd = ((conn_info*)connection_info)->sockfd;
+    int* running = ((conn_info*)connection_info)->running;
     char recvBuff[2000];
     int n;
     int line_count = 0;
 
     
-    while ((n = read(sockfd, recvBuff, sizeof(recvBuff)-1)) > 0) {
+    while (*running == 1 && (n = read(sockfd, recvBuff, sizeof(recvBuff)-1)) > 0) {
         recvBuff[n] = 0;
 
         if (strcmp(recvBuff, "READY") == 0) {
@@ -63,16 +65,18 @@ void* incoming_message_handling(void* connection_info) {
         move_cursor(MESSAGE_INPUT_ROW, 0);
         //sem_post(&terminal_writing);
     } 
+    pthread_exit(NULL);
 
 }
 
 void* outcoming_message_handling(void* connection_info) {
     int sockfd = ((conn_info*)connection_info)->sockfd;
+    int* running = ((conn_info*)connection_info)->running;
     char message[MAX_MESSAGE_LENGTH + 1];
     int length = 0;
     int c, x, y;
 
-    while (1)
+    while (*running)
     {
         length = 0;
         while ((c = getchar()) != '\n')
@@ -80,15 +84,20 @@ void* outcoming_message_handling(void* connection_info) {
             message[length] = c;
             length++;
         }
-        if (length <= 2) {
-            //ZRÓB COŚ Z TYM!!
-            printf("Użytkownik rozłączył się");
-            return 0;
-        }
 
         //message[length] = '\0';
 
         if (length == 0) continue;
+
+        if (length > 0 && message[0] == '/'){
+            if(strcmp(message, "/disconnect") == 0)
+            {
+                puts("Disconnecting from the server");
+                write(sockfd, "DISCONNECT", strlen("DISCONNECT"));
+                *running = 0;
+                break;
+            }   
+        }
 
         write(sockfd, "MSG", strlen("MSG"));
 
@@ -104,12 +113,15 @@ void* outcoming_message_handling(void* connection_info) {
         printf("                                                         "); 
         move_cursor(MESSAGE_INPUT_ROW, 0);
     }
+    close(sockfd);
+    pthread_exit(NULL);
 }
 
 
 
 int main(int argc, char *argv[]) {
     int sockfd = 0, n = 0;
+    int* running = (int*)malloc(sizeof(int));
     char recvBuff[2000];
     struct sockaddr_in serv_addr; 
 
@@ -159,14 +171,15 @@ int main(int argc, char *argv[]) {
     sem_init(&terminal_writing, 0, 1);
     sem_init(&awaiting_server_ready, 0, 0);
     conn_info* connection_info = (conn_info*)malloc(sizeof(conn_info));
+    *running = 1;
     connection_info->sockfd = sockfd;
+    connection_info->running = running;
     pthread_t input_thread, output_thread;
     pthread_create(&input_thread, NULL, incoming_message_handling, (void*)connection_info);
     pthread_create(&output_thread, NULL, outcoming_message_handling, (void*)connection_info);
     
-
-    while (1);
-    
+    pthread_join(input_thread, NULL);
+    pthread_join(output_thread, NULL);    
 
     return 0;
 }
