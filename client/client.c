@@ -9,6 +9,7 @@
 
 #define MAX_MESSAGE_LENGTH 255
 #define MESSAGE_INPUT_ROW 15
+#define OUR_ADDRESS "172.20.10.2"
 
 typedef struct {
     int sockfd;
@@ -129,9 +130,11 @@ void* outcoming_message_handling(void* connection_info) {
 int main(int argc, char *argv[]) {
     int sockfd = 0, n = 0;
     int* running = (int*)malloc(sizeof(int));
+    if (running == NULL) return 1;
     char recvBuff[2000];
     struct sockaddr_in serv_addr; 
     int* fake_semaphore = (int*)malloc(sizeof(int));
+    if (fake_semaphore == NULL) return 1;
 
     memset(recvBuff, '0',sizeof(recvBuff));
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -143,11 +146,7 @@ int main(int argc, char *argv[]) {
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(5000); 
-
-    if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0) {
-        printf("\n inet_pton error occured\n");
-        return 1;
-    } 
+    serv_addr.sin_addr.s_addr = inet_addr(OUR_ADDRESS);
 
     if(connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
        printf("\n Error : Connect Failed \n");
@@ -176,6 +175,7 @@ int main(int argc, char *argv[]) {
     if (n <= 0) { return 1;}
     // create threads responsible for writing and reading from the server
     conn_info* connection_info = (conn_info*)malloc(sizeof(conn_info));
+    if (connection_info == NULL) return 1;
     *running = 1;
     *fake_semaphore = 0;
     connection_info->sockfd = sockfd;
