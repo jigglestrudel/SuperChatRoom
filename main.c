@@ -43,9 +43,11 @@ void* send_messages(void* clients) {
 			for (int i = 0; i < CLIENT_LIMIT; i++) {
 				//message isn't send if current user is author of message or isn't connected
 				if (is_client_connected[i] && name_table[message_to_send->user_number] != NULL) {
+					char* message = "MSG";
+					write(client_sockets[i], message, strlen(message));
 
 					//sending username sender to user
-					char* message = name_table[message_to_send->user_number];
+					message = name_table[message_to_send->user_number];
 					write(client_sockets[i], message, strlen(message));
 
 					//sending message to user
