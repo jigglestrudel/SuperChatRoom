@@ -58,7 +58,7 @@ void* send_messages(void* clients) {
 int check_name_availibility(int client_number, char* chosen_name, char** name_table, int* connection_table){
 	for (int i = 0; i < CLIENT_LIMIT; i++)
 	{
-		if (connection_table[i] == 1 && i != client_number)
+		if (connection_table[i] == 1 && i != client_number && name_table[i] != NULL)
 		{
 			if (strcmp(chosen_name, name_table[i]) == 0)
 			{
