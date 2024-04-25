@@ -8,36 +8,34 @@
 
 
 #define MAX_MESSAGE_LENGTH 255
-#define MESSAGE_INPUT_ROW 30
+#define MESSAGE_INPUT_ROW 15
 
 typedef struct {
     int sockfd;
     int* running;
+    int* fake_semaphore;
 } conn_info;
 
 void move_cursor (int y, int x) {
-    printf("\x1B[%d;%dH", y, x);
+    char str[10];
+    snprintf(str, 10, "\x1B[%d;%dH", y, x);
+    puts(str);
 }
-
-int fake_semaphore = 0;
-
-
-sem_t terminal_writing;
-sem_t awaiting_server_ready;
 
 void* incoming_message_handling(void* connection_info) {
     int sockfd = ((conn_info*)connection_info)->sockfd;
     int* running = ((conn_info*)connection_info)->running;
+    int* fake_semaphore = ((conn_info*)connection_info)->fake_semaphore;
     char recvBuff[2000];
     int n;
-    int line_count = 0;
+    int line_count = 1;
 
     
     while (*running == 1 && (n = read(sockfd, recvBuff, sizeof(recvBuff)-1)) > 0) {
         recvBuff[n] = 0;
 
         if (strcmp(recvBuff, "READY") == 0) {
-            fake_semaphore = 1;
+            *fake_semaphore = 1;
             continue;
         }
 
@@ -52,9 +50,12 @@ void* incoming_message_handling(void* connection_info) {
                 printf("                                                                                             \n");
             }
         }*/
+        //saving the current position
+        puts("\033[s");
 
         // move cursor to the desired row
         move_cursor(line_count, 0);
+        //puts("\033[30A");
 
         // write out the message
         puts(recvBuff);
@@ -62,7 +63,9 @@ void* incoming_message_handling(void* connection_info) {
         // count another line
         line_count++;
 
-        move_cursor(MESSAGE_INPUT_ROW, 0);
+        // restoting the last position
+        puts("\033[u");
+
         //sem_post(&terminal_writing);
     } 
     pthread_exit(NULL);
@@ -72,9 +75,12 @@ void* incoming_message_handling(void* connection_info) {
 void* outcoming_message_handling(void* connection_info) {
     int sockfd = ((conn_info*)connection_info)->sockfd;
     int* running = ((conn_info*)connection_info)->running;
+    int* fake_semaphore = ((conn_info*)connection_info)->fake_semaphore;
     char message[MAX_MESSAGE_LENGTH + 1];
     int length = 0;
     int c, x, y;
+
+    move_cursor(MESSAGE_INPUT_ROW, 0);
 
     while (*running)
     {
@@ -85,7 +91,7 @@ void* outcoming_message_handling(void* connection_info) {
             length++;
         }
 
-        //message[length] = '\0';
+        message[length] = '\0';
 
         if (length == 0) continue;
 
@@ -96,22 +102,28 @@ void* outcoming_message_handling(void* connection_info) {
                 write(sockfd, "DISCONNECT", strlen("DISCONNECT"));
                 *running = 0;
                 break;
-            }   
+            }
+            if(strcmp(message, "/close") == 0)
+            {
+                //puts("Disconnecting from the server");
+                write(sockfd, "CLOSE", strlen("CLOSE"));
+                continue;
+            }  
         }
+        
+        // clearing the line
+        puts("\033[2A");
+        puts("\033[2K");
 
         write(sockfd, "MSG", strlen("MSG"));
 
-        while(fake_semaphore == 0);
+        while(*fake_semaphore == 0);
                     
         write(sockfd, message, length);
 
-        fake_semaphore = 0;
+        *fake_semaphore = 0;
 
-        move_cursor(MESSAGE_INPUT_ROW-1, 0);
-        printf("                                                         ");                                                                                              
-        move_cursor(MESSAGE_INPUT_ROW, 0);
-        printf("                                                         "); 
-        move_cursor(MESSAGE_INPUT_ROW, 0);
+        
     }
     close(sockfd);
     pthread_exit(NULL);
@@ -124,6 +136,7 @@ int main(int argc, char *argv[]) {
     int* running = (int*)malloc(sizeof(int));
     char recvBuff[2000];
     struct sockaddr_in serv_addr; 
+    int* fake_semaphore = (int*)malloc(sizeof(int));
 
     memset(recvBuff, '0',sizeof(recvBuff));
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -167,16 +180,15 @@ int main(int argc, char *argv[]) {
 
     if (n <= 0) { return 1;}
     // create threads responsible for writing and reading from the server
-   
-    sem_init(&terminal_writing, 0, 1);
-    sem_init(&awaiting_server_ready, 0, 0);
     conn_info* connection_info = (conn_info*)malloc(sizeof(conn_info));
     *running = 1;
+    *fake_semaphore = 0;
     connection_info->sockfd = sockfd;
     connection_info->running = running;
+    connection_info->fake_semaphore = fake_semaphore;
     pthread_t input_thread, output_thread;
-    pthread_create(&input_thread, NULL, incoming_message_handling, (void*)connection_info);
     pthread_create(&output_thread, NULL, outcoming_message_handling, (void*)connection_info);
+    pthread_create(&input_thread, NULL, incoming_message_handling, (void*)connection_info);
     
     pthread_join(input_thread, NULL);
     pthread_join(output_thread, NULL);    
