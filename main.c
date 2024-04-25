@@ -87,7 +87,7 @@ void* connection_handler(void *conn_info)
 	/* Send some messages to the client */
 	while(1) {
 		// ask client for the name
-		printf("Pytam o nazwę użytkownika klienta numer %i", client_number);
+		printf("Pytam o nazwę użytkownika klienta numer %i\n", client_number);
 		message = "ASK_NAME";
 		write(sock , message , strlen(message));
 
@@ -102,31 +102,36 @@ void* connection_handler(void *conn_info)
 			name_table[client_number] = new_name;
 			message = "NAME_GOOD";
 			write(sock, message, strlen(message));  //send feedback on username
-			printf("Nazwa uzytkownika klienta nr %i jest prawidłowa", client_number);
+			printf("Nazwa uzytkownika klienta nr %i jest prawidłowa\n", client_number);
 			break;
 		}
-		printf("Nazwa użytkownika nie jest prawidłowa");
+		printf("Nazwa użytkownika nie jest prawidłowa\n");
 	}
 
-	printf("Nastąpiło połączenie klienta numer %i", client_number);
+	printf("Nastąpiło połączenie klienta numer %i\n", client_number);
 	//send connection info to users
 	sem_wait(queue_semaphore);
-	add_new_message(message_queue, "Użytkownik połączył się", client_number, strlen("Użytkownik połączył się"));
+	add_new_message(message_queue, "Użytkownik połączył się\n", client_number, strlen("Użytkownik połączył się"));
 	sem_post(queue_semaphore);
 	 
 	//waiting for messages from user and saving to queue
 	do {
+		printf("Czekam na otrzymanie wiadomości od klienta numer %i\n", client_number);
 		read_size = recv(sock , client_message , 2000 , 0);
 		client_message[read_size] = '\0';
 
+		if (read_size == 0) {
+			continue;
+		}
+		printf("Powinno pojawić się MSG\n");
 		if (strcmp(client_message, "MSG") != 0) {
-			printf("Otrzymano nieprawidłową wiadomość");
+			printf("Otrzymano nieprawidłową wiadomość\n");
 			return 1;
 		}
 
 		message = "READY";
 		write(sock, message, strlen(message));
-		printf("Wysłano READY do użytkownika numer %i", client_number);
+		printf("Wysłano READY do użytkownika numer %i\n", client_number);
 
 		read_size = recv(sock , client_message , 2000 , 0);
 		client_message[read_size] = '\0';
@@ -134,7 +139,7 @@ void* connection_handler(void *conn_info)
 		char* new_message = (char*)malloc(sizeof(char)*strlen(client_message));
 		strcpy(new_message, client_message);
 
-		printf("Otrzymano wiadomość %s od użytkownika %s", new_message, name_table[client_number]);
+		printf("Otrzymano wiadomość %s od użytkownika %s\n", new_message, name_table[client_number]);
 
 		sem_wait(queue_semaphore);
 		add_new_message(message_queue, new_message, client_number, strlen(client_message));
@@ -144,12 +149,13 @@ void* connection_handler(void *conn_info)
 		memset(client_message, 0, 2000);
 	} while(read_size > 2); /* Wait for empty line */
 	
-	fprintf(stderr, "Client disconnected\n"); 
+	fprintf(stderr, "Client %i disconnected\n", client_number); 
 	
 	printf("Klient numer %i rozłącza się", client_number);
+	is_client_connected[client_number] = 0;
 	//send disconnection info to users
 	sem_wait(queue_semaphore);
-	add_new_message(message_queue, "Użytkownik rozłączył się", client_number, strlen("Użytkownik rozłączył się"));
+	add_new_message(message_queue, "Użytkownik rozłączył się\n", client_number, strlen("Użytkownik rozłączył się"));
 	sem_post(queue_semaphore);
 
 	close(sock);
@@ -173,7 +179,7 @@ int main(int argc, char *argv[]) {
 	int client_sockets[CLIENT_LIMIT];
 	messages_info* connected_messages_info = (messages_info*)malloc(sizeof(messages_info));  //PAMIĘTAJ O FREE
 	if (connected_messages_info == NULL) {
-		printf("Nie udało się zaalokować pamięci do przechowywania informacji o przyłączonych użytkownikach");
+		printf("Nie udało się zaalokować pamięci do przechowywania informacji o przyłączonych użytkownikach\n");
 		return 1;
 	}
 	memset(is_client_connected, 0, CLIENT_LIMIT * sizeof(int));

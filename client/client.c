@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <semaphore.h>
-//#include <ncurses.h>
 #include <pthread.h>
 
 
@@ -81,12 +80,17 @@ void* outcoming_message_handling(void* connection_info) {
             message[length] = c;
             length++;
         }
+        if (length <= 2) {
+            //ZRÓB COŚ Z TYM!!
+            printf("Użytkownik rozłączył się");
+            return 0;
+        }
 
         //message[length] = '\0';
 
         if (length == 0) continue;
 
-        write(sockfd, "MSG", strlen("MSG")*sizeof(char));
+        write(sockfd, "MSG", strlen("MSG"));
 
         while(fake_semaphore == 0);
                     
@@ -100,8 +104,6 @@ void* outcoming_message_handling(void* connection_info) {
         printf("                                                         "); 
         move_cursor(MESSAGE_INPUT_ROW, 0);
     }
-        
-    printf("CHUJ CI W DUPE");
 }
 
 
