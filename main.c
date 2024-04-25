@@ -15,9 +15,11 @@ typedef struct connection_info {
 	int client_number;
 	int socket;
 	char** name_table;
+	int* admin_number;
 	int* is_client_connected; 
 	sem_t* queue_semaphore;
 	queue* messages_queue;
+	int* server_running;
 } connection_info;
 
 typedef struct messages_info {
@@ -40,7 +42,7 @@ void* send_messages(void* clients) {
 			node* message_to_send = messages_to_send->start;
 			for (int i = 0; i < CLIENT_LIMIT; i++) {
 				//message isn't send if current user is author of message or isn't connected
-				if (is_client_connected[i]) {
+				if (is_client_connected[i] && name_table[message_to_send->user_number] != NULL) {
 
 					//sending username sender to user
 					char* message = name_table[message_to_send->user_number];
@@ -78,6 +80,8 @@ void* connection_handler(void *conn_info)
 	int* is_client_connected = ((connection_info*)conn_info)->is_client_connected; 
 	sem_t* queue_semaphore = ((connection_info*)conn_info)->queue_semaphore;
 	queue* message_queue = ((connection_info*)conn_info)->messages_queue;
+	int* admin_number = ((connection_info*)conn_info)->admin_number;
+	int* server_running = ((connection_info*)conn_info)->server_running;
 
 	/* Get the socket descriptor */
 	int sock = ((connection_info*)conn_info)->socket;
@@ -107,6 +111,13 @@ void* connection_handler(void *conn_info)
 			message = "NAME_GOOD";
 			write(sock, message, strlen(message));  //send feedback on username
 			printf("Nazwa uzytkownika klienta nr %i jest prawidłowa\n", client_number);
+			if (*admin_number == -1) {
+				*admin_number = client_number;
+				printf("Użytkownik %s jest nowym adminem\n", name_table[client_number]);
+				sem_wait(queue_semaphore);
+				add_new_message(message_queue, "Nowy admin\n", client_number, strlen("Nowy admin\n"));
+				sem_post(queue_semaphore);
+			}
 			break;
 		}
 		printf("Nazwa użytkownika nie jest prawidłowa\n");
@@ -136,9 +147,15 @@ void* connection_handler(void *conn_info)
 			printf("Użytkownik %i wysłał wiadomość\n", client_number);
 		}
 		else if (strcmp(client_message, "DISCONNECT") == 0) {
-			printf("Uzytkownik %i wysłał informację o rozłączeniu\n");
+			printf("Uzytkownik %i wysłał informację o rozłączeniu\n", client_number);
 			break;
 		} 
+		else if (strcmp(client_message, "CLOSE") == 0 && client_number == *admin_number) {
+			printf("Admin zamyka serwer\n");
+			*server_running = 0;
+			close(sock);
+			pthread_exit(NULL);
+		}
 		else {
 			printf("Nie otrzymano prawidłowej wiadomości od użytkownika %i", client_number);
 			return 1;
@@ -176,7 +193,18 @@ void* connection_handler(void *conn_info)
 	sem_wait(queue_semaphore);
 	add_new_message(message_queue, "Użytkownik rozłączył się\n", client_number, strlen("Użytkownik rozłączył się"));
 	sem_post(queue_semaphore);
-
+	name_table[client_number] = NULL;
+	if (*admin_number == client_number) {
+		for (int i = 0; i < CLIENT_LIMIT; i++) {
+			if (is_client_connected[i] && name_table[i] != NULL) {
+				*admin_number = i;
+				sem_wait(queue_semaphore);
+				add_new_message(message_queue, "Nowy admin\n", client_number, strlen("Nowy admin\n"));
+				sem_post(queue_semaphore);
+			}
+		}
+	}
+	free(conn_info);
 	close(sock);
 	pthread_exit(NULL);
 }
@@ -185,10 +213,16 @@ void* connection_handler(void *conn_info)
 int main(int argc, char *argv[]) {
 	int listenfd = 0, connfd = 0;
 	struct sockaddr_in serv_addr; 
-	pthread_t thread_id;
+	pthread_t client_handlers_threads[CLIENT_LIMIT];
+	for (int i = 0; i < CLIENT_LIMIT; i++) {
+		client_handlers_threads[i] = NULL;
+	}
 	queue* messages_queue = create_queue();
 	sem_t queue_semaphore;
 	int return_value = sem_init(&queue_semaphore, 0, 1);
+	int* admin_number = (int*)malloc(sizeof(int));
+	*admin_number = -1;
+	int server_running = 1;
 
 	char* name_table[CLIENT_LIMIT];
 	for (int i = 0; i < CLIENT_LIMIT; i++) {
@@ -196,7 +230,7 @@ int main(int argc, char *argv[]) {
 	}
 	int is_client_connected[CLIENT_LIMIT];
 	int client_sockets[CLIENT_LIMIT];
-	messages_info* connected_messages_info = (messages_info*)malloc(sizeof(messages_info));  //PAMIĘTAJ O FREE
+	messages_info* connected_messages_info = (messages_info*)malloc(sizeof(messages_info));
 	if (connected_messages_info == NULL) {
 		printf("Nie udało się zaalokować pamięci do przechowywania informacji o przyłączonych użytkownikach\n");
 		return 1;
@@ -219,8 +253,8 @@ int main(int argc, char *argv[]) {
 
 	listen(listenfd, 10); 
     
-	pthread_t sending_messages_thread_id;
-	pthread_create(&sending_messages_thread_id, NULL, send_messages, (void*)connected_messages_info);	
+	pthread_t sending_messages_thread;
+	pthread_create(&sending_messages_thread, NULL, send_messages, (void*)connected_messages_info);	
 
 	for (;;) {
 		connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
@@ -245,16 +279,25 @@ int main(int argc, char *argv[]) {
 		{
 			is_client_connected[client_number] = 1;
 			client_sockets[client_number] = connfd;
-			connection_info* conn_info = (connection_info*)malloc(sizeof(connection_info));
+			connection_info* conn_info = (connection_info*)malloc(sizeof(connection_info));  //ZRÓB FREE W WĄTKU
+			conn_info->server_running = &server_running;
 			conn_info->client_number = client_number;
 			conn_info->socket = connfd;
 			conn_info->is_client_connected = is_client_connected;
 			conn_info->name_table = name_table;
 			conn_info->messages_queue = messages_queue;
 			conn_info->queue_semaphore = &queue_semaphore;
-			pthread_create(&thread_id, NULL, connection_handler, (void *) conn_info);
+			conn_info->admin_number = admin_number;
+			pthread_create(&(client_handlers_threads[client_number]), NULL, connection_handler, (void *) conn_info);
+		}
+		if (server_running == 0) {
+			break;
 		}
 	}
-	//NA RAZIE NIE MA ŻADNEGO WYŁĄCZANIA SERWERA - CZY POWINNO BYĆ?
+	for (int i = 0; i < CLIENT_LIMIT; i++) {
+		pthread_join(client_handlers_threads[i], NULL);
+	}
+	pthread_join(sending_messages_thread, NULL);
+	free(connected_messages_info);
 }
 
