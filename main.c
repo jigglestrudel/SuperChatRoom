@@ -211,6 +211,7 @@ void* connection_handler(void *conn_info)
 			}
 		}
 	}
+	free(name_table[client_number]); //WYWYAL JAK NIE BĘDZIE DZIAŁAĆ
 	free(conn_info);
 	close(sock);
 	pthread_exit(NULL);
@@ -286,7 +287,7 @@ int main(int argc, char *argv[]) {
 		{
 			is_client_connected[client_number] = 1;
 			client_sockets[client_number] = connfd;
-			connection_info* conn_info = (connection_info*)malloc(sizeof(connection_info));  //ZRÓB FREE W WĄTKU
+			connection_info* conn_info = (connection_info*)malloc(sizeof(connection_info));
 			conn_info->server_running = &server_running;
 			conn_info->client_number = client_number;
 			conn_info->socket = connfd;
