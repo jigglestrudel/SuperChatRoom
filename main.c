@@ -27,6 +27,7 @@ typedef struct messages_info {
 	int* clients_sockets;
 	int* is_client_connected;
 	char** name_table;
+	int* server_running;
 	queue* messages_queue;
 } messages_info;
 
@@ -36,6 +37,7 @@ void* send_messages(void* clients) {
 	int* is_client_connected = ((messages_info*)clients)->is_client_connected;
 	char** name_table = ((messages_info*)clients)->name_table;
 	queue* messages_to_send = ((messages_info*)clients)->messages_queue;
+	int* server_running = ((messages_info*)clients)->server_running;
 	char client_message[2000];
 	for (;;) {
 		if (messages_to_send->start != NULL) {
@@ -52,6 +54,9 @@ void* send_messages(void* clients) {
 
 					//sending message to user
 					write(client_sockets[i] , message_to_send->message , message_to_send->message_length);
+				}
+				if(*server_running == 0) {
+					pthread_exit(NULL);
 				}
 			}
 			delete_message(messages_to_send);
@@ -301,5 +306,6 @@ int main(int argc, char *argv[]) {
 	}
 	pthread_join(sending_messages_thread, NULL);
 	free(connected_messages_info);
+	free(admin_number);
 }
 
