@@ -102,7 +102,13 @@ void* outcoming_message_handling(void* connection_info) {
                 write(sockfd, "DISCONNECT", strlen("DISCONNECT"));
                 *running = 0;
                 break;
-            }   
+            }
+            if(strcmp(message, "/close") == 0)
+            {
+                //puts("Disconnecting from the server");
+                write(sockfd, "CLOSE", strlen("CLOSE"));
+                continue;
+            }  
         }
         
         // clearing the line

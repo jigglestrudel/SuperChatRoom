@@ -199,7 +199,7 @@ void* connection_handler(void *conn_info)
 			if (is_client_connected[i] && name_table[i] != NULL) {
 				*admin_number = i;
 				sem_wait(queue_semaphore);
-				add_new_message(message_queue, "Nowy admin\n", client_number, strlen("Nowy admin\n"));
+				add_new_message(message_queue, "Nowy admin\n", i, strlen("Nowy admin\n"));
 				sem_post(queue_semaphore);
 			}
 		}
