@@ -94,6 +94,10 @@ void* connection_handler(void *conn_info)
 		// await client nickname
 		read_size = recv(sock , client_message , 2000 , 0);
 		client_message[read_size] = '\0';
+		if (read_size == -1) { //error
+			is_client_connected[client_number] = 0;
+			break;
+		}
 
 		// check if name available
 		if (check_name_availibility(client_number, client_message, name_table, is_client_connected)){
@@ -118,6 +122,10 @@ void* connection_handler(void *conn_info)
 	do {
 		printf("Czekam na otrzymanie wiadomości od klienta numer %i\n", client_number);
 		read_size = recv(sock , client_message , 2000 , 0);
+		if (read_size == -1) { //error
+			is_client_connected[client_number] = 0;
+			break;
+		}
 		client_message[read_size] = '\0';
 
 		if (read_size == 0) {
@@ -142,6 +150,10 @@ void* connection_handler(void *conn_info)
 
 		read_size = recv(sock , client_message , 2000 , 0);
 		client_message[read_size] = '\0';
+		if (read_size == -1) { //error
+			is_client_connected[client_number] = 0;
+			break;
+		}
 
 		char* new_message = (char*)malloc(sizeof(char)*strlen(client_message));
 		strcpy(new_message, client_message);
