@@ -123,9 +123,16 @@ void* connection_handler(void *conn_info)
 		if (read_size == 0) {
 			continue;
 		}
-		printf("Powinno pojawić się MSG\n");
-		if (strcmp(client_message, "MSG") != 0) {
-			printf("Otrzymano nieprawidłową wiadomość\n");
+		printf("Powinno pojawić się MSG lub informacja o rozłączeniu DISCONNECT\n");
+		if (strcmp(client_message, "MSG") == 0) {
+			printf("Użytkownik %i wysłał wiadomość\n", client_number);
+		}
+		else if (strcmp(client_message, "DISCONNECT") == 0) {
+			printf("Uzytkownik %i wysłał informację o rozłączeniu\n");
+			break;
+		} 
+		else {
+			printf("Nie otrzymano prawidłowej wiadomości od użytkownika %i", client_number);
 			return 1;
 		}
 
@@ -147,7 +154,7 @@ void* connection_handler(void *conn_info)
 
 		/* Clear the message buffer */
 		memset(client_message, 0, 2000);
-	} while(read_size > 2); /* Wait for empty line */
+	} while(read_size > 0);
 	
 	fprintf(stderr, "Client %i disconnected\n", client_number); 
 	
